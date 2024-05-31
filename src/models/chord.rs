@@ -28,29 +28,28 @@ impl Chord {
     }
 
 
-    fn handle_third(&mut self, interval: Interval) {
-        if interval == Interval::Min3 {
-            self.third = Some(Third::Minor);
-            match self.sus.pop() {
-                None => (),
-                Some(value) => self.add.push(value),
+    fn handle_third(&mut self, interval: Interval) -> Result<(), &str> {
+        match interval {
+            Interval::Min3 => {
+                self.third = Some(Third::Minor);
+                if !self.sus.is_empty() { self.add.append(&mut self.sus); }
             }
-        } else if interval == Interval::Maj3 {
-            if let Some(Third::Minor) = self.third {
-                self.add.push(Interval::Min3)
+            Interval::Maj3 => {
+                if let Some(Third::Minor) = self.third { self.add.push(Interval::Min3); }
+                self.third = Some(Third::Major);
+                if !self.sus.is_empty() { self.add.append(&mut self.sus); }
             }
-            self.third = Some(Third::Major);
-            match self.sus.pop() {
-                None => (),
-                Some(value) => self.add.push(value),
+            Interval::Min2 | Interval::Maj2 | Interval::Perf4 => {
+                if let None = self.third {
+                    self.sus.push(interval)
+                } else {
+                    self.add.push(interval)
+                }
             }
-        } else { // Min2 | Maj2 | Perf4 |
-            if let None = self.third {
-                self.sus.push(interval);
-            } else {
-                self.add.push(interval);
-            }
+            _ => return Err("Invalid interval"),
         }
+
+        Ok(())
     }
 
 
@@ -115,9 +114,15 @@ mod handle_third_tests {
     use crate::models::{chord::Chord, interval::Interval, third::Third};
 
     #[test]
+    fn invalid() {
+        let mut a = Chord::new();
+        assert_eq!(a.handle_third(Interval::Aug4), Err("Invalid interval"));
+    }
+
+    #[test]
     fn min2() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Min2);
+        let _ = a.handle_third(Interval::Min2);
         
         let mut b = Chord::new();
         b.sus.push(Interval::Min2);
@@ -129,7 +134,7 @@ mod handle_third_tests {
     #[test]
     fn maj2() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Maj2);
         
         let mut b = Chord::new();
         b.sus.push(Interval::Maj2);
@@ -141,7 +146,7 @@ mod handle_third_tests {
     #[test]
     fn min3() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Min3);
+        let _ = a.handle_third(Interval::Min3);
         
         let mut b = Chord::new();
         b.third = Some(Third::Minor);
@@ -153,7 +158,7 @@ mod handle_third_tests {
     #[test]
     fn maj3() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj3);
+        let _ = a.handle_third(Interval::Maj3);
         
         let mut b = Chord::new();
         b.third = Some(Third::Major);
@@ -165,7 +170,7 @@ mod handle_third_tests {
     #[test]
     fn perf4() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Perf4);
+        let _ = a.handle_third(Interval::Perf4);
         
         let mut b = Chord::new();
         b.sus.push(Interval::Perf4);
@@ -175,29 +180,16 @@ mod handle_third_tests {
 
 
     #[test]
-    fn aug4() {
-        let mut a = Chord::new();
-        a.handle_third(Interval::Aug4);
-        
-        let mut b = Chord::new();
-        b.sus.push(Interval::Aug4);
-
-        assert_eq!(a, b);
-    }
-
-    #[test]
     fn multiple_sus() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Min2);
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Perf4);
-        a.handle_third(Interval::Aug4);
+        let _ = a.handle_third(Interval::Min2);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Perf4);
         
         let mut b = Chord::new();
         b.sus.push(Interval::Min2);
         b.sus.push(Interval::Maj2);
         b.sus.push(Interval::Perf4);
-        b.sus.push(Interval::Aug4);
 
         assert_eq!(a, b);
     }
@@ -206,8 +198,8 @@ mod handle_third_tests {
     #[test]
     fn sus_min3() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Min3);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Min3);
         
         let mut b = Chord::new();
         b.third = Some(Third::Minor);
@@ -220,8 +212,8 @@ mod handle_third_tests {
     #[test]
     fn sus_maj3() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Maj3);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Maj3);
         
         let mut b = Chord::new();
         b.third = Some(Third::Major);
@@ -234,9 +226,9 @@ mod handle_third_tests {
     #[test]
     fn sus_min3_add() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Min3);
-        a.handle_third(Interval::Perf4);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_third(Interval::Perf4);
         
         let mut b = Chord::new();
         b.third = Some(Third::Minor);
@@ -250,9 +242,9 @@ mod handle_third_tests {
     #[test]
     fn sus_maj3_add() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Maj3);
-        a.handle_third(Interval::Perf4);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_third(Interval::Perf4);
         
         let mut b = Chord::new();
         b.third = Some(Third::Major);
@@ -266,9 +258,9 @@ mod handle_third_tests {
     #[test]
     fn sus_min3_maj3() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Min3);
-        a.handle_third(Interval::Maj3);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_third(Interval::Maj3);
         
         let mut b = Chord::new();
         b.third = Some(Third::Major);
@@ -282,10 +274,10 @@ mod handle_third_tests {
     #[test]
     fn sus_min3_maj3_add() {
         let mut a = Chord::new();
-        a.handle_third(Interval::Maj2);
-        a.handle_third(Interval::Min3);
-        a.handle_third(Interval::Maj3);
-        a.handle_third(Interval::Perf4);
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_third(Interval::Perf4);
         
         let mut b = Chord::new();
         b.third = Some(Third::Major);
@@ -297,6 +289,7 @@ mod handle_third_tests {
     }
 }
 
+#[cfg(test)]
 mod handle_fifth_tests {
 
 }
