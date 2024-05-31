@@ -1,9 +1,9 @@
-use super::{interval::Interval, third::Third, triad::Triad};
+use super::{fifth::Fifth, interval::Interval, third::Third, triad::Triad};
 
 #[derive(Debug, PartialEq)]
 pub struct Chord {
     pub third: Option<Third>,
-    fifth: bool,
+    fifth: Option<Fifth>,
     seventh: bool,
     ninth: bool,
     eleventh: bool,
@@ -17,7 +17,7 @@ impl Chord {
     pub fn new() -> Chord {
         Chord {
             third: None,
-            fifth: false,
+            fifth: None,
             seventh: false,
             ninth: false,
             eleventh: false,
@@ -60,14 +60,17 @@ impl Chord {
                     None => self.sus.push(interval),
                     Some(third) => {
                         match third {
-                            Third::Minor => self.triad = Some(Triad::Diminished),
+                            Third::Minor => {
+                                self.fifth = Some(Fifth::Diminished);
+                                self.triad = Some(Triad::Diminished)
+                            }
                             Third::Major => self.add.push(interval),
                         }
                     }
                 }
             }
             Interval::Perf5 => {
-                self.fifth = true;
+                self.fifth = Some(Fifth::Perfect);
                 match &self.third {
                     None => (),
                     Some(third) => {
@@ -85,15 +88,27 @@ impl Chord {
             }
             Interval::Aug5 | Interval::Min6 => {
                 match &self.third {
-                    None => self.add.push(interval),
+                    None => {
+                        if let None = self.fifth {
+                            self.fifth = Some(Fifth::Augmented);
+                        } else {
+                            self.add.push(interval);
+                        }
+                    }
                     Some(third) => {
                         match third {
-                            Third::Minor => return Err("Invalid inversion"),
-                            Third::Major => {
-                                if let Some(_) = self.triad {
-                                    self.add.push(interval);
+                            Third::Minor => {
+                                if let Some(_) = self.fifth {
+                                    self.add.push(Interval::Min6);
                                 } else {
-                                    self.fifth = true;
+                                    return Err("Invalid inversion");
+                                }
+                            }
+                            Third::Major => {
+                                if let Some(_) = &self.fifth {
+                                    self.add.push(Interval::Min6);
+                                } else {
+                                    self.fifth = Some(Fifth::Augmented);
                                     self.triad = Some(Triad::Augmented);
                                 }
                             }
@@ -291,5 +306,194 @@ mod handle_third_tests {
 
 #[cfg(test)]
 mod handle_fifth_tests {
+    use crate::models::{chord::Chord, fifth::Fifth, interval::Interval, third::Third, triad::Triad};
 
+    #[test]
+    fn invalid() {
+        let mut a = Chord::new();
+        assert_eq!(a.handle_fifth(Interval::Unison), Err("Invalid interval"));
+    }
+
+
+    #[test]
+    fn aug4_alone() { // sus
+        let mut a = Chord::new();
+        let _ = a.handle_fifth(Interval::Aug4);
+
+        let mut b = Chord::new();
+        b.sus.push(Interval::Aug4);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn min3_aug4() { // diminished triad
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_fifth(Interval::Aug4);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Minor);
+        b.fifth = Some(Fifth::Diminished);
+        b.triad = Some(Triad::Diminished);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn maj3_aug4() { // weird one, add, no triad
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_fifth(Interval::Aug4);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Major);
+        b.fifth = Some(Fifth::Diminished);
+    }
+
+
+    #[test]
+    fn perf5_alone() {
+        let mut a = Chord::new();
+        let _ = a.handle_fifth(Interval::Perf5);
+
+        let mut b = Chord::new();
+        b.fifth = Some(Fifth::Perfect);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn min3_perf5() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_fifth(Interval::Perf5);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Minor);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Minor);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn min3_dim5_perf5() { // dim triad -> minor triad
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_fifth(Interval::Dim5);
+        let _ = a.handle_fifth(Interval::Perf5);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Minor);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Minor);
+        b.add.push(Interval::Dim5);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn maj3_perf5() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_fifth(Interval::Perf5);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Major);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Major);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn aug5_alone() {
+        let mut a = Chord::new();
+        let _ = a.handle_fifth(Interval::Aug5);
+
+        let mut b = Chord::new();
+        b.fifth = Some(Fifth::Augmented);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn perf5_aug5() {
+        let mut a = Chord::new();
+        let _ = a.handle_fifth(Interval::Perf5);
+        let _ = a.handle_fifth(Interval::Aug5);
+
+        let mut b = Chord::new();
+        b.fifth = Some(Fifth::Perfect);
+        b.add.push(Interval::Aug5);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn min3_perf5_aug5() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_fifth(Interval::Perf5);
+        let _ = a.handle_fifth(Interval::Aug5);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Minor);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Minor);
+        b.add.push(Interval::Min6);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn min3_aug5() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let res = a.handle_fifth(Interval::Aug5);
+
+        assert_eq!(res, Err("Invalid inversion"));
+    }
+
+
+    #[test]
+    fn maj3_perf5_aug5() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_fifth(Interval::Perf5);
+        let _ = a.handle_fifth(Interval::Aug5);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Major);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Major);
+        b.add.push(Interval::Min6);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn maj3_aug5() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_fifth(Interval::Aug5);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Major);
+        b.fifth = Some(Fifth::Augmented);
+        b.triad = Some(Triad::Augmented);
+
+        assert_eq!(a, b);
+    }
 }

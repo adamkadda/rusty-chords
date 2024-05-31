@@ -20,3 +20,13 @@ mod triad {
         Augmented,
     }
 }
+
+mod fifth {
+    #[allow(dead_code)]
+    #[derive(Debug, PartialEq)]
+    pub enum Fifth {
+        Diminished,
+        Perfect,
+        Augmented,
+    }
+}
