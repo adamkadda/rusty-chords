@@ -27,6 +27,7 @@ impl Chord {
         }
     }
 
+
     fn handle_third(&mut self, interval: Interval) {
         if interval == Interval::Min3 {
             self.third = Some(Third::Minor);
@@ -43,7 +44,7 @@ impl Chord {
                 None => (),
                 Some(value) => self.add.push(value),
             }
-        } else { // Min2 | Maj2 | Perf4 | (Aug4 | Dim5)
+        } else { // Min2 | Maj2 | Perf4 |
             if let None = self.third {
                 self.sus.push(interval);
             } else {
@@ -51,10 +52,66 @@ impl Chord {
             }
         }
     }
+
+
+    fn handle_fifth(&mut self, interval: Interval) -> Result<(), &str>{
+        match interval {
+            Interval::Aug4 | Interval::Dim5 => {
+                match &self.third {
+                    None => self.sus.push(interval),
+                    Some(third) => {
+                        match third {
+                            Third::Minor => self.triad = Some(Triad::Diminished),
+                            Third::Major => self.add.push(interval),
+                        }
+                    }
+                }
+            }
+            Interval::Perf5 => {
+                self.fifth = true;
+                match &self.third {
+                    None => (),
+                    Some(third) => {
+                        match third {
+                            Third::Minor => {
+                                if let Some(Triad::Diminished) = self.triad {
+                                    self.add.push(Interval::Dim5);
+                                }
+                                self.triad = Some(Triad::Minor);
+                            }
+                            &Third::Major => self.triad = Some(Triad::Major),
+                        }
+                    }
+                }
+            }
+            Interval::Aug5 | Interval::Min6 => {
+                match &self.third {
+                    None => self.add.push(interval),
+                    Some(third) => {
+                        match third {
+                            Third::Minor => return Err("Invalid inversion"),
+                            Third::Major => {
+                                if let Some(_) = self.triad {
+                                    self.add.push(interval);
+                                } else {
+                                    self.fifth = true;
+                                    self.triad = Some(Triad::Augmented);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => return Err("Invalid interval"),
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
-mod tests {
+mod handle_third_tests {
+
     use crate::models::{chord::Chord, interval::Interval, third::Third};
 
     #[test]
@@ -238,4 +295,8 @@ mod tests {
 
         assert_eq!(a, b);
     }
+}
+
+mod handle_fifth_tests {
+
 }
