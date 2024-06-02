@@ -1,15 +1,16 @@
-use super::{fifth::Fifth, interval::Interval, third::Third, triad::Triad};
+use super::{fifth::Fifth, interval::Interval, seventh::Seventh, third::Third, triad::Triad};
 
 #[derive(Debug, PartialEq)]
 pub struct Chord {
-    pub third: Option<Third>,
+    third: Option<Third>,
     fifth: Option<Fifth>,
-    seventh: bool,
+    seventh: Option<Seventh>,
     ninth: bool,
     eleventh: bool,
     triad: Option<Triad>,
-    pub sus: Vec<Interval>,
-    pub add: Vec<Interval>,
+    sus: Vec<Interval>,
+    add: Vec<Interval>,
+    lead: Option<Interval>,
 }
 
 #[allow(dead_code)]
@@ -18,12 +19,13 @@ impl Chord {
         Chord {
             third: None,
             fifth: None,
-            seventh: false,
+            seventh: None,
             ninth: false,
             eleventh: false,
             triad: None,
             sus: Vec::new(),
             add: Vec::new(),
+            lead: None,
         }
     }
 
@@ -121,6 +123,21 @@ impl Chord {
 
         Ok(())
     }
+
+
+    fn handle_sixth(&mut self, interval: Interval) -> Result<(), &str> {
+        match interval {
+            Interval::Maj6 => {
+                if let Some(Triad::Diminished) = &self.triad {
+                    self.seventh = Some(Seventh::Diminished);
+                    self.lead = Some(Interval::Dim7);
+                } else { self.add.push(Interval::Maj6); }
+            }
+            _ => return Err("Invalid interval"),
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -129,7 +146,7 @@ mod handle_third_tests {
     use crate::models::{chord::Chord, interval::Interval, third::Third};
 
     #[test]
-    fn invalid() {
+    fn invalid_interval() {
         let mut a = Chord::new();
         assert_eq!(a.handle_third(Interval::Aug4), Err("Invalid interval"));
     }
@@ -309,7 +326,7 @@ mod handle_fifth_tests {
     use crate::models::{chord::Chord, fifth::Fifth, interval::Interval, third::Third, triad::Triad};
 
     #[test]
-    fn invalid() {
+    fn invalid_interval() {
         let mut a = Chord::new();
         assert_eq!(a.handle_fifth(Interval::Unison), Err("Invalid interval"));
     }
@@ -493,6 +510,102 @@ mod handle_fifth_tests {
         b.third = Some(Third::Major);
         b.fifth = Some(Fifth::Augmented);
         b.triad = Some(Triad::Augmented);
+
+        assert_eq!(a, b);
+    }
+}
+
+#[cfg(test)]
+mod handle_sixth_tests {
+    use crate::models::{chord::Chord, fifth::Fifth, interval::Interval, seventh::Seventh, third::Third, triad::Triad};
+
+    #[test]
+    fn invalid_interval() {
+        let mut a = Chord::new();
+        assert_eq!(a.handle_sixth(Interval::Unison), Err("Invalid interval"));
+    }
+
+
+    #[test]
+    fn dim_triad() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_fifth(Interval::Dim5);
+        let _ = a.handle_sixth(Interval::Maj6);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Minor);
+        b.fifth = Some(Fifth::Diminished);
+        b.triad = Some(Triad::Diminished);
+        b.seventh = Some(Seventh::Diminished);
+        b.lead = Some(Interval::Dim7);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn min_triad() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Min3);
+        let _ = a.handle_fifth(Interval::Perf5);
+        let _ = a.handle_sixth(Interval::Maj6);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Minor);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Minor);
+        b.add.push(Interval::Maj6);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn maj_triad() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_fifth(Interval::Perf5);
+        let _ = a.handle_sixth(Interval::Maj6);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Major);
+        b.fifth = Some(Fifth::Perfect);
+        b.triad = Some(Triad::Major);
+        b.add.push(Interval::Maj6);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn aug_triad() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj3);
+        let _ = a.handle_fifth(Interval::Aug5);
+        let _ = a.handle_sixth(Interval::Maj6);
+
+        let mut b = Chord::new();
+        b.third = Some(Third::Major);
+        b.fifth = Some(Fifth::Augmented);
+        b.triad = Some(Triad::Augmented);
+        b.add.push(Interval::Maj6);
+
+        assert_eq!(a, b);
+    }
+
+
+    #[test]
+    fn no_triad() {
+        let mut a = Chord::new();
+        let _ = a.handle_third(Interval::Maj2);
+        let _ = a.handle_fifth(Interval::Perf5);
+        let _ = a.handle_sixth(Interval::Maj6);
+
+        let mut b = Chord::new();
+        b.sus.push(Interval::Maj2);
+        b.fifth = Some(Fifth::Perfect);
+        b.add.push(Interval::Maj6);
 
         assert_eq!(a, b);
     }

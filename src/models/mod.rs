@@ -30,3 +30,12 @@ mod fifth {
         Augmented,
     }
 }
+
+mod seventh {
+    #[derive(Debug, PartialEq)]
+    pub enum Seventh {
+        Diminished,
+        Minor,
+        Major,
+    }
+}
