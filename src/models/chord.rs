@@ -89,33 +89,17 @@ impl Chord {
                 }
             }
             Interval::Aug5 | Interval::Min6 => {
-                match &self.third {
+                match self.fifth {
                     None => {
-                        if let None = self.fifth {
-                            self.fifth = Some(Fifth::Augmented);
-                        } else {
-                            self.add.push(interval);
-                        }
-                    }
-                    Some(third) => {
-                        match third {
-                            Third::Minor => {
-                                if let Some(_) = self.fifth {
-                                    self.add.push(Interval::Min6);
-                                } else {
-                                    return Err("Invalid inversion");
-                                }
-                            }
-                            Third::Major => {
-                                if let Some(_) = &self.fifth {
-                                    self.add.push(Interval::Min6);
-                                } else {
-                                    self.fifth = Some(Fifth::Augmented);
-                                    self.triad = Some(Triad::Augmented);
-                                }
+                        if let Some(third) = &self.third {
+                            match third {
+                                Third::Major => self.triad = Some(Triad::Augmented),
+                                Third::Minor => return Err("Invalid inversion"),
                             }
                         }
+                        self.fifth = Some(Fifth::Augmented);
                     }
+                    Some(_) => self.add.push(Interval::Min6), // dim triad | min triad
                 }
             }
             _ => return Err("Invalid interval"),
@@ -450,7 +434,7 @@ mod handle_fifth_tests {
 
         let mut b = Chord::new();
         b.fifth = Some(Fifth::Perfect);
-        b.add.push(Interval::Aug5);
+        b.add.push(Interval::Min6);
 
         assert_eq!(a, b);
     }
